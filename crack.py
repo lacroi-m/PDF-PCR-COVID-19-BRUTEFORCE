@@ -6,11 +6,12 @@ import argparse
 import pyfiglet
 from pikepdf import Pdf
 from termcolor import colored
+from datetime import datetime, timedelta
+
+datetimeFormat = '%d%m%Y'
 
 def IncrementChar(char):
     return chr(ord(char) + 1)
-
-charAfterNine = IncrementChar('9')
 
 def AtoZ(last):
     # TODO: Check last is expected / is cap letters and 3 characters 
@@ -37,60 +38,11 @@ def AtoZ(last):
     return  last[0] + last[1] + x
 
 
-def Dates(last):
-    # TODO: Check last is expected / is numeric and 8 characters 
-
-    day0 =   last[0]
-    day1 =   last[1]
-    month2 = last[2]
-    month3 = last[3]
-    year4 =  last[4]
-    year5 =  last[5]
-    year6 =  last[6]
-    year7 =  last[7]
-
-    # Reset
-    if day0 == '3' and day1 == '1':
-        day0 = "0"
-        day1 = "0" 
-        month3 = IncrementChar(month3)
-
-    if month2 == '1' and month3 == '2':
-        month2 = '0' 
-        month3 = '0'
-        year7 = IncrementChar(year7)
-
-    # Increment
-    if year7 == charAfterNine:
-        year7 = '0'
-        year6 = IncrementChar(year6)
-    if year6 == charAfterNine:
-        year6 = '0'
-        year5 = IncrementChar(year5)
-    if year5 == charAfterNine:
-        year5 = '0'
-        year4 = IncrementChar(year4)
-    if year4 == charAfterNine:
-        print("OUT DATE")
-        exit()
-
-    if month3 == charAfterNine:
-        month3 = '0'
-        month2 = IncrementChar(month2)
-
-    day1 = IncrementChar(day1)
-    if day1 == charAfterNine:
-        day1 = '0'
-        day0 = IncrementChar(day0)
-
-    # build string
-    return day0 + day1 + month2 + month3 + year4 + year5 + year6 + year7
-
-def bruteforce(filename, letters, date, max_date):
+def bruteforce(filename: str, letters: str, date: datetime, max_date: datetime):
     passtest = ""
     testDate = date
     while True:
-        passtest = letters + testDate
+        passtest = letters + testDate.strftime(datetimeFormat)
         print("Testing:" + passtest)
         try:
             Pdf.open(filename_or_stream = filename, password = passtest)
@@ -100,23 +52,23 @@ def bruteforce(filename, letters, date, max_date):
             # incorrect password
             pass
 
-        if (testDate == max_date):
+        if (testDate.strftime(datetimeFormat) == max_date.strftime(datetimeFormat)):
             # increment letters
             letters = AtoZ(letters)
 
             # reset date
             testDate = date
         else:
-            testDate = Dates(testDate)
+            testDate += timedelta(days=1)
 
     return False
 
-def header(filename: str, letters: str, date: str, max_date: str):
+def header(filename: str, letters: str, date: datetime, max_date: datetime):
    os.system("clear")
    ascii_banner = pyfiglet.figlet_format("PCR PDF CRACKER").upper()
    print(colored(ascii_banner.rstrip("\n"), 'green', attrs=['bold']))
    print(colored("PAR MAXIME LACROIX\n", 'yellow', attrs=['bold']))
-   print(colored("filename: " + filename + "\nStarting at letters: " + letters + "\ndate start: " + date + "\nmax date:   " + max_date + "\n\n", 'white', attrs=['bold']))
+   print(colored("filename: " + filename + "\nStarting at letters: " + letters + "\ndate start: " + date.strftime(datetimeFormat) + "\nmax date:   " + max_date.strftime(datetimeFormat) + "\n\n", 'white', attrs=['bold']))
    return
 
 def menu():
@@ -133,7 +85,9 @@ def menu():
        print(colored("\n[?] Please select an option: ",'green'),end='')
        selection=input()
        if selection == "1":
-           print("Dictoionary attack")
+           print("Dictoionary attack - Not ready yet")
+           # TODO: setup dictoionary attack with all combinaisons
+           exit()
        if selection == "2":
            print("Brut Force attack") 
            break
@@ -143,9 +97,9 @@ def menu():
 # Parse Commandline Args
 parser = argparse.ArgumentParser(description='Crack numeric passwords of PDFs')
 parser.add_argument('--filename', help="Full path of the PDF file", type=str)
-parser.add_argument('--letters', help="Start name 3 letters: AAA", type=str, default="AAA")
-parser.add_argument('--date', help="Start date format: DDMMYYYY \"01011900\" for 1st Jan 1990", type=str, default="01011900")
-parser.add_argument('--max_date', help="End date format: DDMMYYYY \"01012050\" for 1st Jan 2050", type=str, default="01012050")
+parser.add_argument('--letters', help="Start name 3 letters: AAA will increment until ZZZ", type=str, default="AAA")
+parser.add_argument('--date', help="Start date format: DDMMYYYY \"01011900\" for 1st Jan 1900", type=str, default="01011900")
+parser.add_argument('--max_date', help="End date format: DDMMYYYY \"01012025\" for 1st Jan 2025", type=str, default="01012025")
 args = parser.parse_args()
 
 # Check
@@ -159,13 +113,41 @@ elif args.filename.endswith('.pdf') == False:
     print("file '" + args.filename + "' does not have .pdf extension\nExiting...")
     exit()
 
-header(args.filename, args.letters, args.date, args.max_date)
+if len(args.letters) != 3:
+    print("letters must be 3 letters !\nExiting...")
+    parser.print_help()
+    exit()
+elif args.letters.isnumeric() == True:
+    print("letters must be 3 letters not numbers !\nExiting...")
+    parser.print_help()
+    exit()
+
+if args.date.isnumeric() == False | args.max_date.isnumeric() == False:
+    print("date or max_date argument should only contain numbers")
+    print("got '" + args.date + "' instead\nExiting...")
+    exit()
+elif len(args.date) != 8 | len(args.max_date) != 8:
+    print("date or max_date argument should only be specified length")
+    parser.print_help()
+    exit()
+
+# Handle date
+day   =  args.date[:2]
+month =  args.date[2:4]
+year  =  args.date[4:]
+startDatetime = datetime(int(year), int(month), int(day))
+
+day   =  args.max_date[:2]
+month =  args.max_date[2:4]
+year  =  args.max_date[4:]
+maxDatetime = datetime(int(year), int(month), int(day))
+
+header(args.filename, args.letters, startDatetime, maxDatetime)
 menu()
 found_password = False
 
 print("Cracking. Please wait...")
 while not found_password:
-    print("Trying to crack starting with " + args.filename + args.date)
-    found_password = bruteforce(args.filename, args.letters, args.date, args.max_date)
+    found_password = bruteforce(args.filename, args.letters, startDatetime, maxDatetime)
 if not found_password:
     print("Could not crack the password")
