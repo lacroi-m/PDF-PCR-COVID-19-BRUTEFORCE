@@ -13,13 +13,15 @@ datetimeFormat = '%d%m%Y'
 def IncrementChar(char):
     return chr(ord(char) + 1)
 
-def AtoZ(last):
-    # TODO: Check last is expected / is cap letters and 3 characters 
-
+# increment the serie of 3 letters corresponding to first letters of last name
+def AtoZ(last: str):
     last2 = False
     last1 = False
-    last0 = False
 
+    if last[0] == 'Z' and last[1] == 'Z' and last[2] == 'Z':
+        print("Cant increment after ZZZ")
+        return ""
+    
     if last[2] == 'Z' and last[1] != 'Z':
         last2 = True
         x = IncrementChar(last[1])
@@ -43,10 +45,14 @@ def bruteforce(filename: str, letters: str, date: datetime, max_date: datetime):
     testDate = date
     while True:
         passtest = letters + testDate.strftime(datetimeFormat)
-        print("Testing:" + passtest)
         try:
+            # TODO: Add debug mode
+            # print("Testing " + passtest) 
             Pdf.open(filename_or_stream = filename, password = passtest)
             print("Password is " + passtest)
+            f = open("passord.txt", "a")
+            f.write("passord for file " + filename + " is: '" + passtest + "'\n")
+            f.close()
             return True
         except:
             # incorrect password
@@ -55,7 +61,8 @@ def bruteforce(filename: str, letters: str, date: datetime, max_date: datetime):
         if (testDate.strftime(datetimeFormat) == max_date.strftime(datetimeFormat)):
             # increment letters
             letters = AtoZ(letters)
-
+            if letters == "":
+                return False
             # reset date
             testDate = date
         else:
@@ -73,8 +80,8 @@ def header(filename: str, letters: str, date: datetime, max_date: datetime):
 
 def menu():
     menu = {}
-    menu['1']="Dictionary Attack. (fast)"
-    menu['2']="Brut Force Attack. (slow)"
+    menu['1']="Brut Force Attack. (slow)"
+    menu['2']="Dictionary Attack. (fast) - NOT IMPLEMENTED YET"
     menu['3']="Exit"
 
     while True: 
@@ -84,22 +91,20 @@ def menu():
           print(entry, menu[entry])
        print(colored("\n[?] Please select an option: ",'green'),end='')
        selection=input()
-       if selection == "1":
-           print("Dictoionary attack - Not ready yet")
+       if selection == "1" or selection == "":
+           break
+       if selection == "2":
            # TODO: setup dictoionary attack with all combinaisons
            exit()
-       if selection == "2":
-           print("Brut Force attack") 
-           break
        if selection == "3":
            exit()
 
 # Parse Commandline Args
 parser = argparse.ArgumentParser(description='Crack numeric passwords of PDFs')
 parser.add_argument('--filename', help="Full path of the PDF file", type=str)
-parser.add_argument('--letters', help="Start name 3 letters: AAA will increment until ZZZ", type=str, default="AAA")
+parser.add_argument('--letters', help="Start name 3 CAPITAL letters that will increment until ZZZ default is AAA", type=str, default="AAA")
 parser.add_argument('--date', help="Start date format: DDMMYYYY \"01011900\" for 1st Jan 1900", type=str, default="01011900")
-parser.add_argument('--max_date', help="End date format: DDMMYYYY \"01012025\" for 1st Jan 2025", type=str, default="01012025")
+parser.add_argument('--max_date', help="End date format: DDMMYYYY \"01012021\" for 1st Jan 2021", type=str, default="01012021")
 args = parser.parse_args()
 
 # Check
@@ -115,20 +120,20 @@ elif args.filename.endswith('.pdf') == False:
 
 if len(args.letters) != 3:
     print("letters must be 3 letters !\nExiting...")
-    parser.print_help()
     exit()
 elif args.letters.isnumeric() == True:
     print("letters must be 3 letters not numbers !\nExiting...")
-    parser.print_help()
+    exit()
+elif args.letters.isupper() == False:
+    print("letters must be CAPITAL letters.\nGot: '" + args.letters + "'\nShould be: '"  + args.letters.upper() +  "'\nExiting...")
     exit()
 
-if args.date.isnumeric() == False | args.max_date.isnumeric() == False:
+if args.date.isnumeric() == False or args.max_date.isnumeric() == False:
     print("date or max_date argument should only contain numbers")
     print("got '" + args.date + "' instead\nExiting...")
     exit()
-elif len(args.date) != 8 | len(args.max_date) != 8:
+elif len(args.date) != 8 or len(args.max_date) != 8:
     print("date or max_date argument should only be specified length")
-    parser.print_help()
     exit()
 
 # Handle date
@@ -144,10 +149,7 @@ maxDatetime = datetime(int(year), int(month), int(day))
 
 header(args.filename, args.letters, startDatetime, maxDatetime)
 menu()
-found_password = False
 
 print("Cracking. Please wait...")
-while not found_password:
-    found_password = bruteforce(args.filename, args.letters, startDatetime, maxDatetime)
-if not found_password:
+if bruteforce(args.filename, args.letters, startDatetime, maxDatetime) == False:
     print("Could not crack the password")
